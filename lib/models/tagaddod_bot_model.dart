@@ -16,7 +16,12 @@ class ChatbotModel {
 
   /// Load the TFLite model
   Future<void> _loadModel() async {
-    _interpreter = await Interpreter.fromAsset('assets/chatbot_model-6.tflite');
+    var opt = InterpreterOptions()
+      ..useFlexDelegateAndroid = true
+      ..useNnApiForAndroid = true;
+
+    _interpreter =
+        await Interpreter.fromAsset('chatbot_model.tflite', options: opt);
     print("✅ Model loaded successfully");
   }
 
@@ -24,13 +29,15 @@ class ChatbotModel {
   Future<void> _loadTokenizer() async {
     String jsonString = await rootBundle.loadString('assets/word_index.json');
     _wordIndex = Map<String, int>.from(json.decode(jsonString));
-     print("✅ Word index loaded: ${_wordIndex?.length} words");
-  print("📝 Word index sample: ${_wordIndex?.keys.take(10).toList()}");
+    print("✅ Word index loaded: ${_wordIndex?.length} words");
+    print("📝 Word index sample: ${_wordIndex?.keys.take(10).toList()}");
   }
 
   /// Preprocess text (match training format)
   String _preprocessText(String text) {
-    return text.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), ''); // Remove punctuation
+    return text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\w\s]'), ''); // Remove punctuation
   }
 
   /// Tokenize input text
@@ -40,15 +47,14 @@ class ChatbotModel {
       return List.filled(maxSequenceLength, 0);
     }
 
-   // text = _preprocessText(text); // Apply preprocessing
+    // text = _preprocessText(text); // Apply preprocessing
     debugPrint("Text is $text");
-    List<int> sequence = text
-        .split(' ')
-      .map((word) {
-        int token = _wordIndex?[word] ?? _wordIndex?["<OOV>"] ?? 0; // Fallback to <OOV>
-        print("🔹 Word: $word, Token: $token");
-        return token; 
-      }).toList();
+    List<int> sequence = text.split(' ').map((word) {
+      int token =
+          _wordIndex?[word] ?? _wordIndex?["<OOV>"] ?? 0; // Fallback to <OOV>
+      print("🔹 Word: $word, Token: $token");
+      return token;
+    }).toList();
 
     // Pad or truncate the sequence
     while (sequence.length < maxSequenceLength) {
@@ -60,9 +66,9 @@ class ChatbotModel {
   /// Predict intent
   Future<String> predict(String inputText) async {
     List<int> inputVector = _tokenizeText(inputText);
-    debugPrint("🔹 Tokenized Input: $inputVector"); 
-  List<List<int>> inputBatch = [inputVector];  
-   List<List<double>> output = [List.filled(7, 0.0)];
+    debugPrint("🔹 Tokenized Input: $inputVector");
+    List<List<int>> inputBatch = [inputVector];
+    List<List<double>> output = [List.filled(7, 0.0)];
 
     _interpreter?.run(inputBatch, output);
     debugPrint("🔹 Model Output: $output");
